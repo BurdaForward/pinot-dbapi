@@ -11,6 +11,8 @@ from pinotdb import exceptions
 from pinotdb import keywords
 import logging
 
+from pinotdb.constants import DEFAULT_TIMEOUT
+
 logger = logging.getLogger(__name__)
 
 
@@ -167,6 +169,10 @@ class PinotDialect(default.DefaultDialect):
             kwargs["password"] = self._password = kwargs.pop("password")
         kwargs["debug"] = self._debug = bool(kwargs.get("debug", False))
         kwargs["verify_ssl"] = self._verify_ssl = (str(kwargs.get("verify_ssl", "true")).lower() in ['true'])
+        if "timeout" in kwargs and str(kwargs['timeout']).isdigit():
+            kwargs["connect_timeout"] = int(kwargs.get("timeout"))
+        else:
+            kwargs["connect_timeout"] = DEFAULT_TIMEOUT
         logger.info(
             "Updated pinot dialect args from %s: %s and %s",
             kwargs,

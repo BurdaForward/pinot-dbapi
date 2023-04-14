@@ -13,6 +13,7 @@ import httpx
 from urllib import parse
 
 from pinotdb import exceptions
+from pinotdb.constants import DEFAULT_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +145,7 @@ class Connection:
         self.cursors = []
         self.session = kwargs.get('session')
         self.is_session_external = False
+        self.connect_timeout = kwargs.get('connect_timeout', DEFAULT_TIMEOUT)
         if self.session:
             self.verify_session()
             self.is_session_external = True
@@ -179,7 +181,9 @@ class Connection:
         """Return a new Cursor Object using the connection."""
         if not self.session or self.session.is_closed:
             self.session = httpx.Client(
-                verify=self._kwargs.get('verify_ssl'))
+                verify=self._kwargs.get('verify_ssl'),
+                timeout=self.connect_timeout,
+            )
 
         self._kwargs['session'] = self.session
         cursor = Cursor(*self._args, **self._kwargs)
@@ -210,7 +214,9 @@ class AsyncConnection(Connection):
         """Return a new Cursor Object using the connection."""
         if not self.session or self.session.is_closed:
             self.session = httpx.AsyncClient(
-                verify=self._kwargs.get('verify_ssl'))
+                verify=self._kwargs.get('verify_ssl'),
+                timeout=self.connect_timeout,
+            )
 
         self._kwargs['session'] = self.session
         cursor = AsyncCursor(*self._args, **self._kwargs)
