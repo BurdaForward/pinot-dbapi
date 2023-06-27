@@ -4,7 +4,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.engine import default
 from sqlalchemy.sql import compiler
-from sqlalchemy import types
+from sqlalchemy import types, util
 
 import pinotdb
 from pinotdb import exceptions
@@ -184,6 +184,10 @@ class PinotDialect(default.DefaultDialect):
     @classmethod
     def dbapi(cls):
         return pinotdb
+
+    @util.memoized_property
+    def _dialect_specific_select_one(self):
+        return "SELECT 1 FROM default"
 
     def get_default_broker_port(self):
         if self.scheme.lower() == "https":
