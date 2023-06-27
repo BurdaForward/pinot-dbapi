@@ -173,9 +173,9 @@ class PinotDialect(default.DefaultDialect):
             kwargs["connect_timeout"] = int(kwargs.get("timeout"))
         else:
             kwargs["connect_timeout"] = DEFAULT_TIMEOUT
-        logger.info(
+        logger.debug(
             "Updated pinot dialect args from %s: %s and %s",
-            kwargs,
+            {key: value if key != "password" else "****" for key, value in kwargs.items()},
             self._controller,
             self._debug,
         )
@@ -222,7 +222,7 @@ class PinotDialect(default.DefaultDialect):
                 "Got invalid json response from " f"{self._controller}:{path}: {r.text}"
             ) from e
         if self._debug:
-            logger.info(
+            logger.debug(
                 "metadata get on %s:%s returned %s", self._controller, path, result
             )
         return result
@@ -245,7 +245,7 @@ class PinotDialect(default.DefaultDialect):
     def get_columns(self, connection, table_name, schema=None, **kwargs):
         payload = self.get_metadata_from_controller(f"/tables/{table_name}/schema")
 
-        logger.info(
+        logger.debug(
             "Getting columns for %s from %s: %s", table_name, self._controller, payload
         )
         specs = (

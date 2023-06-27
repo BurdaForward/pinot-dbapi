@@ -405,7 +405,7 @@ class Cursor:
         if self._debug:
             status_code = (
                 0 if not query_response else query_response.status_code)
-            logger.info(
+            logger.debug(
                 f"Got the payload of type {type(payload)} "
                 f"with the status code {status_code}:\n{payload}"
             )
@@ -463,7 +463,7 @@ class Cursor:
         if column_data_types:
             types = get_types_from_column_data_types(column_data_types)
             if self._debug:
-                logger.info(
+                logger.debug(
                     f"Column_names are {pformat(column_names)}, "
                     f"Column_data_types are {pformat(column_data_types)}, "
                     f"Types are {pformat(types)}"
