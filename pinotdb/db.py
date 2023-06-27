@@ -164,7 +164,7 @@ class Connection:
             except exceptions.Error:
                 pass  # already closed
         # if we're managing the httpx session, attempt to close it
-        if not self.is_session_external:
+        if not self.is_session_external and hasattr(self.session, 'close'):
             self.session.close()
 
     @check_closed
@@ -346,7 +346,7 @@ class Cursor:
     @check_closed
     def close(self):
         """Close the cursor."""
-        if self.session is not None and not self.session.is_closed:
+        if self.session is not None and not self.session.is_closed and hasattr(self.session, 'close'):
             self.session.close()
         self.closed = True
 
