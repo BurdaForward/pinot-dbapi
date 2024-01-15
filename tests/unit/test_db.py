@@ -390,7 +390,7 @@ class CursorTest(TestCase):
     def test_checks_sufficient_responded_min1_queried_min1_responded(self):
         cursor = db.Cursor(host='localhost', session=httpx.Client())
 
-        with self.assertRaises(exceptions.DatabaseError):
+        with self.assertRaises(exceptions.QueryTimeoutError):
             cursor.check_sufficient_responded('foo', -1, -1)
 
     def test_checks_sufficient_responded_3_queried_3_responded(self):

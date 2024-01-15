@@ -364,9 +364,9 @@ class Cursor:
         else:
             needed = fraction
         if responded < 0 or responded < needed:
-            raise exceptions.DatabaseError(
-                f"Query\n\n{query} timed out: Out of {queried}, only"
-                f" {responded} responded, while needed was {needed}"
+            raise exceptions.QueryTimeoutError(
+                f"Query\n\n{query} timed out: Out of {queried} queried Pinot servers, only"
+                f" {responded} responded, while {needed} were needed"
             )
 
     def finalize_query_payload(
@@ -391,7 +391,7 @@ class Cursor:
         try:
             payload = query_response.json()
         except Exception as e:
-            raise exceptions.DatabaseError(
+            raise exceptions.MalformedQueryResponseError(
                 f"Error when querying {input_query} from {self.url}, "
                 f"raw response is:\n{query_response.text}"
             ) from e
@@ -413,11 +413,28 @@ class Cursor:
 
         # raise any error messages
         if query_response.status_code != 200:
-            msg = (
-                f"Query\n\n{input_query}\n\nreturned an error: "
-                f"{query_response.status_code}\n"
-                f"Full response is {pformat(payload)}")
-            raise exceptions.ProgrammingError(msg)
+            status_code = query_response.status_code
+
+            if status_code == 404:
+                raise exceptions.NotFoundError(
+                    f"Query\n\n{input_query}\n\nreturned a 404 Not Found error.\n"
+                    f"Full response is {pformat(payload)}"
+                )
+            elif status_code == 500:
+                raise exceptions.ServerError(
+                    f"Query\n\n{input_query}\n\nreturned a 500 Internal Server Error.\n"
+                    f"Full response is {pformat(payload)}"
+                )
+            elif status_code == 503:
+                raise exceptions.ServiceUnavailableError(
+                    f"Query\n\n{input_query}\n\nreturned a 503 Service Unavailable error.\n"
+                    f"Full response is {pformat(payload)}"
+                )
+            else:
+                raise exceptions.ProgrammingError(
+                    f"Query\n\n{input_query}\n\nreturned an unexpected error: {status_code}\n"
+                    f"Full response is {pformat(payload)}"
+                )
 
         query_exceptions = [
             e for e in payload.get("exceptions", [])
@@ -443,7 +460,7 @@ class Cursor:
             if column_names:
                 rows = values
             else:
-                raise exceptions.DatabaseError(
+                raise exceptions.MalformedQueryResponseError(
                     "Expected columns and results in resultTable, "
                     f"but got {pformat(results)} instead"
                 )
