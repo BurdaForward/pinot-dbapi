@@ -328,6 +328,7 @@ class Cursor:
             )
         else:
             self._ignore_exception_error_codes = []
+        self._connect_timeout = kwargs.get('connect_timeout')
 
         self.auth = None
         if username and password:
@@ -482,7 +483,14 @@ class Cursor:
     def execute(self, operation, parameters=None, queryOptions=None, **kwargs):
         query = self.finalize_query_payload(
             operation, parameters, queryOptions)
-
+        if (
+                self._connect_timeout
+                and isinstance(self._connect_timeout, (int, float))
+                and not isinstance(self._connect_timeout, bool)
+        ):
+            query["sql"] = f"SET timeoutMs={self._connect_timeout * 1000};\n{query['sql']}"
+        if self._debug:
+            logger.debug(f"{'=' * 30}\n{json.dumps(query)}\n{'=' * 30}\n")
         if self.auth and self.auth._username and self.auth._password:
             r = self.session.post(
                 self.url,
@@ -578,6 +586,14 @@ class AsyncCursor(Cursor):
     ):
         query = self.finalize_query_payload(
             operation, parameters, queryOptions)
+        if (
+                self._connect_timeout
+                and isinstance(self._connect_timeout, (int, float))
+                and not isinstance(self._connect_timeout, bool)
+        ):
+            query["sql"] = f"SET timeoutMs={self._connect_timeout * 1000};\n{query['sql']}"
+        if self._debug:
+            logger.debug(f"{'=' * 30}\n{json.dumps(query)}\n{'=' * 30}\n")
 
         if self.auth and self.auth._username and self.auth._password:
             r = await self.session.post(
