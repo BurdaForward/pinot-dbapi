@@ -388,13 +388,42 @@ class Cursor:
             return {"sql": query}
 
     def normalize_query_response(self, input_query, query_response):
+        if query_response.status_code == 400:
+            raise exceptions.ServerError(
+                f"Server returned a 400 Bad Request response."
+            )
+        elif query_response.status_code == 500:
+            raise exceptions.ServerError(
+                f"Server returned a 500 Internal Server Error response."
+            )
+        elif query_response.status_code == 503:
+            raise exceptions.ServiceUnavailableError(
+                f"Server returned a 503 Service Unavailable response."
+            )
+
         try:
             payload = query_response.json()
         except Exception as e:
             raise exceptions.MalformedQueryResponseError(
-                f"Error when querying {input_query} from {self.url}, "
+                f"Malformed response when querying {input_query} from {self.url}, "
                 f"raw response is:\n{query_response.text}"
             ) from e
+
+
+        for exception in payload.get("exceptions", []):
+            if "message" in exception and exception["message"]:
+                if "TableDoesNotExistError" in exception["message"]:
+                    raise exceptions.NotFoundError(
+                        f"Table of query {input_query} not found!"
+                    )
+                elif "UnknownColumnError" in exception["message"]:
+                    raise exceptions.NotFoundError(
+                        f"Column of query {input_query} not found!"
+                    )
+                else:
+                    raise exceptions.InternalError(
+                        exception["message"]
+                    )
 
         if self._debug:
             status_code = (
@@ -413,28 +442,11 @@ class Cursor:
 
         # raise any error messages
         if query_response.status_code != 200:
-            status_code = query_response.status_code
-
-            if status_code == 404:
-                raise exceptions.NotFoundError(
-                    f"Query\n\n{input_query}\n\nreturned a 404 Not Found error.\n"
-                    f"Full response is {pformat(payload)}"
-                )
-            elif status_code == 500:
-                raise exceptions.ServerError(
-                    f"Query\n\n{input_query}\n\nreturned a 500 Internal Server Error.\n"
-                    f"Full response is {pformat(payload)}"
-                )
-            elif status_code == 503:
-                raise exceptions.ServiceUnavailableError(
-                    f"Query\n\n{input_query}\n\nreturned a 503 Service Unavailable error.\n"
-                    f"Full response is {pformat(payload)}"
-                )
-            else:
-                raise exceptions.ProgrammingError(
-                    f"Query\n\n{input_query}\n\nreturned an unexpected error: {status_code}\n"
-                    f"Full response is {pformat(payload)}"
-                )
+            msg = (
+                f"Query\n\n{input_query}\n\nreturned an error: "
+                f"{query_response.status_code}\n"
+                f"Full response is {pformat(payload)}")
+            raise exceptions.ProgrammingError(msg)
 
         query_exceptions = [
             e for e in payload.get("exceptions", [])
