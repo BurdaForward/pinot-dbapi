@@ -10,6 +10,18 @@ class InterfaceError(Error):
     pass
 
 
+class NotFoundError(Error):
+    pass
+
+
+class ServerError(Error):
+    pass
+
+
+class ServiceUnavailableError(Error):
+    pass
+
+
 class DatabaseError(Error):
     pass
 
@@ -35,4 +47,12 @@ class DataError(DatabaseError):
 
 
 class NotSupportedError(DatabaseError):
+    pass
+
+
+class QueryTimeoutError(DatabaseError):
+    pass
+
+
+class MalformedQueryResponseError(DatabaseError):
     pass

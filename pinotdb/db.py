@@ -371,9 +371,9 @@ class Cursor:
         else:
             needed = fraction
         if responded < 0 or responded < needed:
-            raise exceptions.DatabaseError(
-                f"Query\n\n{query} timed out: Out of {queried}, only"
-                f" {responded} responded, while needed was {needed}"
+            raise exceptions.QueryTimeoutError(
+                f"Query\n\n{query} timed out: Out of {queried} queried Pinot servers, only"
+                f" {responded} responded, while {needed} were needed"
             )
 
     def finalize_query_payload(
@@ -395,13 +395,38 @@ class Cursor:
             return {"sql": query}
 
     def normalize_query_response(self, input_query, query_response):
+        if 400 <= query_response.status_code < 500:
+            raise exceptions.ServerError(
+                f"Server returned a {query_response.status_code} Bad Request response."
+            )
+        elif query_response.status_code == 500:
+            raise exceptions.ServerError(
+                f"Server returned a 500 Internal Server Error response."
+            )
+        elif query_response.status_code == 503:
+            raise exceptions.ServiceUnavailableError(
+                f"Server returned a 503 Service Unavailable response."
+            )
+
         try:
             payload = query_response.json()
         except Exception as e:
-            raise exceptions.DatabaseError(
-                f"Error when querying {input_query} from {self.url}, "
+            raise exceptions.MalformedQueryResponseError(
+                f"Malformed response when querying {input_query} from {self.url}, "
                 f"raw response is:\n{query_response.text}"
             ) from e
+
+
+        _exception_msgs = [exception["message"] for exception in payload.get("exceptions", []) if "message" in exception]
+        for msg in _exception_msgs:
+            if "TableDoesNotExistError" in msg:
+                raise exceptions.NotFoundError(
+                    f"Table of query {input_query} not found!"
+                )
+            elif "UnknownColumnError" in msg:
+                raise exceptions.NotFoundError(
+                    f"Column of query {input_query} not found!"
+                )
 
         if self._debug:
             status_code = (
@@ -450,7 +475,7 @@ class Cursor:
             if column_names:
                 rows = values
             else:
-                raise exceptions.DatabaseError(
+                raise exceptions.MalformedQueryResponseError(
                     "Expected columns and results in resultTable, "
                     f"but got {pformat(results)} instead"
                 )
