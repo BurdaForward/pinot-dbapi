@@ -388,9 +388,9 @@ class Cursor:
             return {"sql": query}
 
     def normalize_query_response(self, input_query, query_response):
-        if query_response.status_code == 400:
+        if 400 <= query_response.status_code < 500:
             raise exceptions.ServerError(
-                f"Server returned a 400 Bad Request response."
+                f"Server returned a {query_response.status_code} Bad Request response."
             )
         elif query_response.status_code == 500:
             raise exceptions.ServerError(
@@ -410,20 +410,16 @@ class Cursor:
             ) from e
 
 
-        for exception in payload.get("exceptions", []):
-            if "message" in exception and exception["message"]:
-                if "TableDoesNotExistError" in exception["message"]:
-                    raise exceptions.NotFoundError(
-                        f"Table of query {input_query} not found!"
-                    )
-                elif "UnknownColumnError" in exception["message"]:
-                    raise exceptions.NotFoundError(
-                        f"Column of query {input_query} not found!"
-                    )
-                else:
-                    raise exceptions.InternalError(
-                        exception["message"]
-                    )
+        _exception_msgs = [exception["message"] for exception in payload.get("exceptions", []) if "message" in exception]
+        for msg in _exception_msgs:
+            if "TableDoesNotExistError" in msg:
+                raise exceptions.NotFoundError(
+                    f"Table of query {input_query} not found!"
+                )
+            elif "UnknownColumnError" in msg:
+                raise exceptions.NotFoundError(
+                    f"Column of query {input_query} not found!"
+                )
 
         if self._debug:
             status_code = (
